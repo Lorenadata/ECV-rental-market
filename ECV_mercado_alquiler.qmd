@@ -1,0 +1,275 @@
+---
+title: "Mercado del alquiler y desigualdad en España"
+subtitle: "Análisis de condiciones de vida con microdatos de la ECV 2024"
+author: "Lorena Marcos"
+date: 1-03-26
+lang: es
+format:
+  html:
+    toc: true
+    toc-title: "Contenidos"
+    toc-depth: 2
+    code-fold: true
+    code-summary: "Ver código"
+    theme: flatly
+    highlight-style: github
+    fig-align: center
+    fig-width: 8
+    fig-height: 5
+    df-print: paged
+execute:
+  warning: false
+  message: false
+---
+
+## Introducción
+
+El mercado del alquiler residencial en España ha experimentado una presión creciente en los últimos años, con subidas de precios que afectan de forma desproporcionada a los hogares de rentas más bajas. Al mismo tiempo, quienes obtienen ingresos como arrendadores representan un segmento de la población con un perfil económico muy diferente.
+
+Este análisis explora ambas caras del mercado utilizando los **microdatos de la Encuesta de Condiciones de Vida (ECV) 2024**, publicados por el Instituto Nacional de Estadística (INE). La ECV es la fuente de referencia en España para medir la distribución de la renta, la pobreza y la exclusión social, y cubre una muestra representativa de la población residente.
+
+El análisis se estructura en dos bloques:
+
+-   **Parte I** — Condiciones de vida de las personas que viven en régimen de alquiler.
+-   **Parte II** — Condiciones de vida de quienes pertenecen a hogares arrendadores.
+
+```{r}
+#| label: setup
+
+load("ECVpersona.RData")
+
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(Hmisc)
+
+# Renta equivalente individual
+ECVpersona <- ECVpersona |>
+  mutate(RENTA_EQUIVALENTE = HY020 / HX240)
+
+# Variable de clase baja: renta equivalente < 75% de la mediana (19.307 €)
+ECVpersona <- ECVpersona |>
+  mutate(clase_baja = ifelse(RENTA_EQUIVALENTE < 0.75 * 19307, 1, 0))
+
+# Variable de clase alta: renta equivalente > 200% de la mediana
+ECVpersona <- ECVpersona |>
+  mutate(clase_alta = ifelse(RENTA_EQUIVALENTE > 2 * 19307, 1, 0))
+
+# Variable arrendador: hogar con rentas de alquiler positivas
+ECVpersona <- ECVpersona |>
+  mutate(ARRENDADOR = ifelse(HY040N > 0, 1, 0))
+```
+
+------------------------------------------------------------------------
+
+## Parte I: Personas que viven en régimen de alquiler
+
+La variable `ARRENDATARIO` del fichero `ECVpersona` identifica a las personas que residen en una vivienda en régimen de alquiler (valor 1) frente a quienes no lo hacen (valor 0). Todos los cálculos utilizan el factor de elevación `RB050` para obtener estimaciones representativas de la población española.
+
+### ¿Qué proporción de la población vive de alquiler?
+
+El primer paso es conocer el peso del colectivo arrendatario en el conjunto de la población. Esta cifra sirve de referencia para interpretar los indicadores que se calculan a continuación.
+
+```{r}
+#| label: pct-arrendatarios
+
+pct_arrendatario <- ECVpersona |>
+  group_by(ARRENDATARIO) |>
+  summarise(poblacion = sum(RB050)) |>
+  ungroup() |>
+  mutate(porcentaje = poblacion / sum(poblacion) * 100)
+
+pct_arrendatario
+```
+
+Aproximadamente **1 de cada 4 personas** en España reside en una vivienda de alquiler, lo que subraya la relevancia social del colectivo analizado.
+
+------------------------------------------------------------------------
+
+### ¿Qué proporción de la población pertenece a la clase baja?
+
+Se define como clase baja a las personas cuya renta equivalente es inferior al 75 % de la mediana nacional, cifrada en 19.307 € según la ECV 2024. Este umbral sigue la metodología estándar de Eurostat para la medición de la pobreza relativa.
+
+```{r}
+#| label: pct-clase-baja
+
+pct_clase_baja <- ECVpersona |>
+  group_by(clase_baja) |>
+  summarise(poblacion = sum(RB050)) |>
+  ungroup() |>
+  mutate(porcentaje = poblacion / sum(poblacion) * 100)
+
+pct_clase_baja
+```
+
+------------------------------------------------------------------------
+
+### Clase baja entre arrendatarios y no arrendatarios
+
+¿Vivir de alquiler está asociado a una mayor probabilidad de pertenecer a la clase baja? La siguiente tabla compara el porcentaje de personas de clase baja dentro de cada grupo.
+
+```{r}
+#| label: clase-baja-por-regimen
+
+clase_baja_regimen <- ECVpersona |>
+  group_by(ARRENDATARIO, clase_baja) |>
+  summarise(poblacion = sum(RB050)) |>
+  ungroup() |>
+  group_by(ARRENDATARIO) |>
+  mutate(
+    total_grupo = sum(poblacion),
+    porcentaje  = poblacion / total_grupo * 100
+  ) |>
+  ungroup()
+
+clase_baja_regimen
+```
+
+Los datos revelan una brecha clara: **el porcentaje de personas de clase baja es significativamente mayor entre quienes viven de alquiler** que entre quienes no lo hacen, lo que apunta a una concentración del riesgo económico en el colectivo arrendatario.
+
+------------------------------------------------------------------------
+
+### Nivel de vida: renta equivalente media por régimen de tenencia
+
+Para cuantificar la diferencia en el nivel de vida, calculamos la renta equivalente media ponderada de cada grupo.
+
+```{r}
+#| label: renta-media-regimen
+
+renta_media <- ECVpersona |>
+  group_by(ARRENDATARIO) |>
+  summarise(renta_media = weighted.mean(RENTA_EQUIVALENTE, RB050)) |>
+  ungroup()
+
+renta_media
+```
+
+Las personas que no viven de alquiler presentan una renta equivalente media más elevada, lo que es coherente con el mayor acceso a la propiedad que caracteriza a los hogares de rentas medias y altas en España.
+
+------------------------------------------------------------------------
+
+## Parte II: Personas en hogares arrendadores
+
+La variable `HY040N` recoge los ingresos netos del hogar procedentes del alquiler de propiedades. Se considera arrendador a todo hogar con un valor positivo en esta variable.
+
+### ¿Qué proporción de la población pertenece a hogares arrendadores?
+
+```{r}
+#| label: pct-arrendadores
+
+pct_arrendador <- ECVpersona |>
+  group_by(ARRENDADOR) |>
+  summarise(poblacion = sum(RB050)) |>
+  ungroup() |>
+  mutate(porcentaje = poblacion / sum(poblacion) * 100)
+
+pct_arrendador
+```
+
+------------------------------------------------------------------------
+
+### Clase alta entre arrendadores y no arrendadores
+
+Se define como clase alta a las personas con una renta equivalente superior al doble de la mediana nacional (38.614 €). ¿Es mayor la proporción de clase alta entre quienes obtienen rentas del alquiler?
+
+```{r}
+#| label: clase-alta-arrendadores
+
+clase_alta_arrendador <- ECVpersona |>
+  group_by(ARRENDADOR, clase_alta) |>
+  summarise(poblacion = sum(RB050)) |>
+  ungroup() |>
+  group_by(ARRENDADOR) |>
+  mutate(
+    total_grupo = sum(poblacion),
+    porcentaje  = poblacion / total_grupo * 100
+  ) |>
+  ungroup()
+
+clase_alta_arrendador
+```
+
+------------------------------------------------------------------------
+
+### Distribución de la renta: percentiles P10, P50 y P90
+
+Los percentiles permiten comparar no solo el nivel medio de renta sino también la dispersión dentro de cada grupo. El ratio P90/P10 es un indicador clásico de desigualdad interna.
+
+```{r}
+#| label: percentiles
+
+library(Hmisc)
+
+limites_superiores <- ECVpersona |>
+  group_by(ARRENDADOR) |>
+  summarise(
+    P10 = wtd.quantile(RENTA_EQUIVALENTE, weights = RB050, probs = 0.1),
+    P50 = wtd.quantile(RENTA_EQUIVALENTE, weights = RB050, probs = 0.5),
+    P90 = wtd.quantile(RENTA_EQUIVALENTE, weights = RB050, probs = 0.9)
+  ) |>
+  ungroup()
+
+limites_superiores |>
+  mutate(ratio_P90_P10 = P90 / P10)
+```
+
+El ratio P90/P10 indica cuántas veces supera la renta del percentil 90 a la del percentil 10. Un valor más alto implica mayor desigualdad interna dentro del grupo.
+
+------------------------------------------------------------------------
+
+### Visualización: distribución de la renta por percentiles
+
+```{r}
+#| label: fig-percentiles
+#| fig-cap: "Límite superior de renta equivalente por percentil y tipo de hogar. Fuente: elaboración propia a partir de los microdatos de la ECV 2024 (INE)."
+
+datos_largos <- limites_superiores |>
+  pivot_longer(
+    cols      = c(P10, P50, P90),
+    names_to  = "percentil",
+    values_to = "max_renta"
+  ) |>
+  mutate(
+    grupo    = ifelse(ARRENDADOR == 1, "Arrendador", "No arrendador"),
+    percentil = factor(percentil, levels = c("P10", "P50", "P90"))
+  )
+
+ggplot(datos_largos, aes(x = percentil, y = max_renta, fill = grupo)) +
+  geom_col(position = "dodge", width = 0.6) +
+  scale_fill_manual(values = c("Arrendador" = "#2c7bb6", "No arrendador" = "#abd9e9")) +
+  scale_y_continuous(labels = scales::comma_format(suffix = " €")) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title   = element_text(face = "bold", hjust = 0.5, size = 14),
+    plot.subtitle = element_text(hjust = 0.5, color = "gray40", size = 11),
+    plot.caption = element_text(hjust = 0, color = "gray50", size = 9),
+    legend.position = "top",
+    legend.title    = element_blank(),
+    panel.grid.major.x = element_blank()
+  ) +
+  labs(
+    title    = "Distribución de la renta equivalente",
+    subtitle = "Arrendadores vs. no arrendadores — percentiles P10, P50 y P90",
+    x        = NULL,
+    y        = "Renta equivalente (€)",
+    caption  = "Fuente: elaboración propia a partir de los microdatos de la ECV 2024 (INE)"
+  )
+```
+
+------------------------------------------------------------------------
+
+## Conclusiones
+
+El análisis de los microdatos de la ECV 2024 permite extraer tres conclusiones principales sobre la estructura del mercado del alquiler en España:
+
+**1. El alquiler concentra población de rentas bajas.** El porcentaje de personas de clase baja es sustancialmente mayor entre los arrendatarios que en el resto de la población. Esto refleja que el acceso a la vivienda en propiedad está condicionado por el nivel económico, y que el colectivo arrendatario está más expuesto a situaciones de vulnerabilidad económica.
+
+**2. Los hogares arrendadores tienen un perfil económico privilegiado.** La proporción de personas de clase alta es significativamente superior entre quienes obtienen rentas del alquiler. El arrendamiento de propiedades aparece como una fuente de ingresos asociada a niveles de renta elevados.
+
+**3. La desigualdad interna varía entre grupos.** El ratio P90/P10 muestra diferencias en la dispersión de la renta entre arrendadores y no arrendadores, lo que indica que no todos los perfiles dentro de cada grupo son homogéneos.
+
+En conjunto, los datos apuntan a una dinámica en la que el mercado del alquiler actúa como un mecanismo de transferencia de renta de los hogares más vulnerables hacia los de mayor capacidad económica, lo que refuerza la pertinencia de políticas públicas orientadas a la regulación del mercado residencial.
+
+------------------------------------------------------------------------
+
+*Análisis realizado con R · Datos: ECV 2024, INE · Autor: Lorena Marcos*
