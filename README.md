@@ -44,7 +44,7 @@ Exploratory analysis of living conditions using microdata from Spain's **Survey 
 | Key variables | `HY020` (household income), `HX240` (equivalence scale), `ARRENDATARIO`, `HY040N` |
 | Access | [INE microdata portal](https://www.ine.es/dyngs/INEbase/es/operacion.htm?c=Estadistica_C&cid=1254736176807&menu=resultados&idp=1254735976608) |
 
-> Note: `ECVpersona.RData` is not included in this repository. Download the microdata directly from INE and load it following the instructions in the `.qmd` file.
+> Note: `ECVpersona.RData` is included in this repository. However, you can download the microdata directly from INE and load it following the instructions in the `.qmd` file.
 
 ---
 
