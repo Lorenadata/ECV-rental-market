@@ -82,7 +82,7 @@ pct_arrendatario <- ECVpersona |>
 pct_arrendatario
 ```
 
-Aproximadamente **1 de cada 4 personas** en España reside en una vivienda de alquiler, lo que subraya la relevancia social del colectivo analizado.
+El **21 % de la población** (aproximadamente 1 de cada 5 personas) reside en una vivienda de alquiler, lo que subraya la relevancia social del colectivo analizado.
 
 ------------------------------------------------------------------------
 

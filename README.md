@@ -17,10 +17,10 @@ Survey-weighted analysis of both sides of the Spanish rental market, using offic
 
 ## Key findings
 
-- Around **1 in 4 people** in Spain lives in rented housing.
-- The share of low-income individuals is substantially **higher among tenants** than among non-tenants.
-- People with rental income show a much **higher share of high-income** individuals.
-- The P90/P10 ratio shows how internal inequality differs between tenants and landlords.
+- **21% of the population** (about 1 in 5 people) lives in rented housing.
+- **46.2% of tenants are low-income**, against 26.2% of non-tenants. Their mean equivalised income is €17,073, compared with €23,008.
+- **21.7% of people with rental income are high-income**, against 6.2% of everyone else (16.8% of the population receives rental income).
+- Inequality *within* each group differs: the P90/P10 ratio is 4.8 among tenants and 3.8 among landlords.
 
 ## Methodology
 
