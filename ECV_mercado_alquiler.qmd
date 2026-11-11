@@ -2,7 +2,7 @@
 title: "Mercado del alquiler y desigualdad en España"
 subtitle: "Análisis de condiciones de vida con microdatos de la ECV 2024"
 author: "Lorena Marcos"
-date: 1-03-26
+date: 2026-03-01
 lang: es
 format:
   html:
